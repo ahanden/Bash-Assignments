@@ -117,6 +117,7 @@ listen() {
                     success=false
                     break
                 fi
+                chmod o-rwx $assignments_home/$assignment/$user/$file
             if [ $success = false ]; then
                 continue
             fi
