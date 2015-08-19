@@ -1,0 +1,78 @@
+#!/bin/bash
+
+set -e
+
+source turnin.config
+
+# Configuration variables
+user=$(whoami)
+assignment=$1
+dir=$2
+tarball=$temp_dir/$user\_$assignment.tar
+pipe_in=$temp_dir/$user\_response
+
+# Test for usage
+if [ -z $assignment ]; then
+    echo "
+usage: submit [assignment] [directory]
+
+Submits an assignment for grading. Provide the assignment name and
+the directory containing your work as arguments. If you submit the
+same assignment more than once, only the most recent submission
+will be reviewed.
+";
+    exit 0
+fi
+
+# Test that the pipe to the submission daemon is present
+if [[ ! -p $daemon_pipe ]]; then
+    echo "Assignment submission daemon is down!"
+    echo "Contact Adam at handena@pitt.edu about error code 43912"
+    exit 1
+fi
+
+# Check that the provided assignment name is valid
+if [ ! -r "$assignments_home/$assignment/file_list.txt" ]; then
+    echo "Unrecognized assignment: $assignment"
+    exit 1
+fi
+
+# Check that the provided directory is valid
+if [ -z $dir ] || [ ! -d $dir ]; then
+    echo "You must submit a directory"
+    exit 1
+fi
+
+# Remove old submission archive, if present
+rm $tarball -f
+
+# Check that all required files are present and pack them in a tarball
+while read file; do
+    if [ ! -r "$dir/$file" ]; then
+        echo "Your submission is missing file $file. Check that it is present and readable in your submission directory, $dir."
+        rm $tarball -f
+        exit 1
+    fi
+    tar --append --file=$tarball -C "$dir" $file
+done < $assignments_home/$assignment/file_list.txt
+
+# Grant permisions for the daemon to get the tarball
+chmod 777 $tarball
+
+# Open response pipe
+trap "rm -f $pipe_in" EXIT
+if [[ ! -p $pipe_in ]]; then
+    mkfifo $pipe_in --mode=662
+fi
+
+# Submit the assignment
+echo "$user;$assignment;$tarball;$pipe_in" > $daemon_pipe
+
+# Listen for a response from the submission daemon
+while true; do
+    if read line <$pipe_in; then
+        echo $line
+        rm $tarball -f
+        break
+    fi
+done

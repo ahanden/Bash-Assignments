@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -e
+
+source turnin.config
+
+assignment=$1
+
+# Check that the provided assignment name is valid
+if [ ! -r "$assignments_home/$assignment/file_list.txt" ] || [ ! -d "$assignments_home/$assignment/required_files" ]; then
+    echo "Unrecognized assignment: $assignment"
+    exit 1
+fi
+
+# Make the assignment directory
+mkdir $assignment -p
+
+# Copy the necessary files
+cp "$assignments_home/$assignment/required_files/*" "$assignment/"

@@ -1,0 +1,151 @@
+#!/bin/bash
+
+source turnin.config
+
+echoerr() { echo "$@" 1>&2; }
+
+start() {
+    set -e
+
+    echo "Starting daemon..."
+
+    if [ -r $pid_file ]; then
+        read -r pid < "$pid_file"
+        if [ $(ps -p $pid | wc -l) == 2 ]; then
+            echoerr "turnin_daemon is already running."
+            exit 1
+        else
+            rm "$pid_file"
+        fi
+    fi
+
+    echo "Log file: $log"
+    echo "Error log: $err_log"
+    echo "PID file: $pid_file"
+
+    nohup "./$0" listen 1>>"$log" 2>>"$err_log" &
+    echo $! > "$pid_file"
+    echo "Startup successful"
+}
+
+stop() {
+    set -e
+
+    echo "Stopping daemon..."
+    if [ ! -r $pid_file ]; then
+        echoerr "No turnin_daemon is currently running."
+        exit 1
+    fi
+    read -r pid < "$pid_file"
+    kill $pid
+    rm "$pid_file"
+    echo "$(date): Daemon stopped" >> $log
+    echo "Stop successful"
+}
+
+status() {
+    set -e
+    if [ -r $pid_file ]; then
+        read -r pid < "$pid_file"
+        if [ $(ps -p $pid | wc -l) == 2 ]; then
+            echo "turnin_daemon is running"
+        else
+            echo "turning_daemon is stopped"
+        fi
+    else
+        echo "turnin_daemon is stopped"
+    fi
+}
+
+listen() {
+    # Open the pipe for input
+    echo "$(date): Daemon started"
+    trap "rm -f $daemon_pipe" EXIT
+    if [[ ! -p $daemon_pipe ]]; then
+        mkfifo $daemon_pipe --mode=662
+    fi
+
+    # Listen for submission requests
+    while true
+    do
+        if read line <$daemon_pipe; then
+            # Parse submission data
+            fields=(`echo $line | tr ';' ' '`)
+            user=${fields[0]}
+            assignment=${fields[1]}
+            tarball=${fields[2]}
+            pipe_out=${fields[3]}
+
+            # Check that the response pipe is open
+            if [[ ! -p $pipe_out ]]; then
+                echo "$(date): Error. Output pipe is not open: $pipe_out"
+                continue
+            fi
+
+            # Check that the assignment ID is correct
+            if [ ! -r "$assignments_home/$assignment/file_list.txt" ]; then
+                echo "Error code 48273: Unrecognized assignment. $err_message" > $pipe_out
+                echo "$(date): Error 48273. $user submitted bad assignment: $assignment."
+                continue
+            fi
+
+            # Check that the tarball is still there
+            if [ ! -r $tarball ]; then
+                echo "Error code 73624: An error occured in your submission. $err_message" > $pipe_out
+                echo "$(date): Error 73524. $user submitted an absent tarball: $tarball."
+                continue
+            fi
+
+            # Check that the user is valid
+            if ! id -u "$user" >/dev/null 2>&1; then
+                echo "Error code 84723: This submission is from an unrecognized user. $err_message" > $pipe_out
+                echo "$(date): Error: 84723. An unrecognized user made a submission: $user"
+                continue
+            fi
+
+            # Copy the tarball and its contents
+            mkdir $assignments_home/$assignment/$user -p
+            cp $tarball $assignments_home/$assignment/$user/tarball.tar
+            tar -xf $assignments_home/$assignment/$user/tarball.tar -C $assignments_home/$assignment/$user/
+
+            # Double-check that all the files are there
+            success=true
+            while read file; do
+                if [ ! -r "$assignments_home/$assignment/$user/$file" ]; then
+                    echo "Error code 28473: The submission is incomplete: missing file $file. $err_message" > $pipe_out
+                    echo "$(date): Error 28473. $user submitted an incomplete tarball for assignment $assignment."
+                    success=false
+                    break
+                fi
+            if [ $success = false ]; then
+                continue
+            fi
+            done < $assignments_home/$assignment/file_list.txt
+
+            # Toss out the tarball if it's kosher
+            rm $assignments_home/$assignment/$user/tarball.tar
+
+            # The submission is successful, if we made it this far
+            echo "Submission for $assignment received at $(date)" > $pipe_out
+            echo "$(date): $user submitted assignemnt $assignment"
+        fi
+    done
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    listen)
+        listen
+        ;;
+    status)
+        status
+        ;;
+    *)
+        echo "Usage: turnin_daemon {start|stop|status}"
+        ;;
+esac
