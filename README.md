@@ -5,21 +5,21 @@ An assignment submission system for Linux machines that relies on bash scripts. 
 
 ### Files and directory structure
 First, create a folder for your assignments. Under that folder, create an additional folder for each assignment you plan to give out. Under each assignment, create a text file `file_list.txt` containing a list of required files for submission, and a `starting_files` directory that contains all the files students need to begin the assignment. Example:
-`Assignments
-|--Assignment1
-|  |--file_list.txt
-|  \`--starting_files
-|     \`--template_code.py
-|--Assignment2
-|  |--file_list.txt
-|  \`--starting_files
-|      |--module1.py
-|      \`--template_code.py
-\`--Assignment3
-  |--file_list.txt
-  \`--required_files
-    |--data.txt
-    \`--template_code.py`
+    Assignments
+    |--Assignment1
+    |  |--file_list.txt
+    |  `--starting_files
+    |     `--template_code.py
+    |--Assignment2
+    |  |--file_list.txt
+    |  `--starting_files
+    |      |--module1.py
+    |      `--template_code.py
+    `--Assignment3
+      |--file_list.txt
+      `--required_files
+        |--data.txt
+        `--template_code.py
 
 Your `file_list.txt` file should contian one filename per line. When a student makes a submission, these files will be copied into the assignment folder in a new directory named after the user.
 
