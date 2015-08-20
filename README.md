@@ -18,7 +18,7 @@ First, create a folder for your assignments. Under that folder, create an additi
     |      `--template_code.py
     `--Assignment3
       |--file_list.txt
-      `--required_files
+      `--starting_files
         |--data.txt
         `--template_code.py
 ```
