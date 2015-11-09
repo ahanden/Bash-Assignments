@@ -4,10 +4,19 @@ set -e
 
 source turnin.config
 
+# Read commandline arguments
+assignment=
+dir=
+if [ "$#" -eq 1 ]; then
+    assignment=$1
+    dir=$1
+else
+    assignment=$1
+    dir=$2    
+fi
+
 # Configuration variables
 user=$(whoami)
-assignment=$1
-dir=$2
 tarball=$temp_dir/$user\_$assignment.tar
 pipe_in=$temp_dir/$user\_response
 
