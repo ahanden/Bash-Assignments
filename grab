@@ -16,4 +16,4 @@ fi
 mkdir $assignment -p
 
 # Copy the necessary files
-cp "$assignments_home/$assignment/starting_files/*" "$assignment/"
+cp -r "$assignments_home/$assignment/starting_files/*" "$assignment/"
